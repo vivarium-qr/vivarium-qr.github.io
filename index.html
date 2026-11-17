@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QR Vivarium</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23163023%27/%3E%3Cpath d=%27M6 22C10 10 20 6 27 6C26 14 21 24 9 25Z%27 fill=%27%2357A84A%27/%3E%3Cpath d=%27M9 24C14 18 19 13 24 9%27 stroke=%27%23C6E36A%27 stroke-width=%271.6%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,500&display=swap">
+<style>
+/* Layout : une vitre de terrarium en tête (la bestiole choisie y vit), puis les 3 étapes à gauche et la carte-QR collante à droite ; une colonne sur téléphone */
+:root{
+  --bg:#E7EEE3; --surface:#F7FAF3; --ink:#14251B; --muted:#4F6355; --line:#C9D6C6;
+  --moss:#2F6B3F; --moss-ink:#FFFFFF; --moss-soft:#DCEBD5;
+  --amber:#8A5600; --amber-soft:#FFF0D2; --amber-line:#E6C27A; --danger:#B3261E;
+  --tank:#163023; --tank-2:#285A3E; --tank-ink:#EDF6E8; --tank-muted:#B7CFB1; --glass:rgba(255,255,255,.07);
+  --f-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --f-body:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-latin:Newsreader,Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1611; --surface:#14211A; --ink:#E3EEDF; --muted:#9CB29F; --line:#2A3D31;
+    --moss:#8CCB72; --moss-ink:#0D1611; --moss-soft:#1D3325;
+    --amber:#F0B44C; --amber-soft:#33270F; --amber-line:#6B5222; --danger:#F2867D;
+    --tank:#0F2419; --tank-2:#1F4A32;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1611; --surface:#14211A; --ink:#E3EEDF; --muted:#9CB29F; --line:#2A3D31;
+  --moss:#8CCB72; --moss-ink:#0D1611; --moss-soft:#1D3325;
+  --amber:#F0B44C; --amber-soft:#33270F; --amber-line:#6B5222; --danger:#F2867D;
+  --tank:#0F2419; --tank-2:#1F4A32;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+.page{max-width:1140px;margin:0 auto;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:30px}
+
+/* ---- La vitre ---- */
+.tank{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:end;border-radius:22px;overflow:hidden;color:var(--tank-ink);
+  background:radial-gradient(120% 100% at 78% 0%,var(--tank-2),var(--tank) 72%);box-shadow:inset 0 0 0 6px var(--glass)}
+.tank::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(112deg,transparent 52%,var(--glass) 53%,var(--glass) 57%,transparent 58%)}
+.tank-copy{position:relative;z-index:1;align-self:center;display:flex;flex-direction:column;gap:12px;padding:34px 8px 34px 32px;max-width:46ch}
+.kicker{margin:0;font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--tank-muted)}
+h1{margin:0;font-family:var(--f-display);font-weight:800;font-size:clamp(2.5rem,9vw,3.9rem);line-height:.92;letter-spacing:-.025em;text-wrap:balance}
+.tank-copy p.lead{margin:0;font-size:1.06rem;color:var(--tank-ink);opacity:.92}
+.tag{align-self:flex-start;display:inline-flex;gap:8px;align-items:baseline;padding:5px 10px;border:1px solid var(--tank-muted);border-radius:6px;font-size:.84rem;color:var(--tank-muted)}
+.tag i{font-family:var(--f-latin);font-size:.98rem;color:var(--tank-ink)}
+.tank-art{display:block;width:100%;height:auto}
+#heroWrap{transform-box:fill-box;transform-origin:50% 100%}
+.pop{animation:pop .45s cubic-bezier(.3,1.5,.5,1)}
+@keyframes pop{from{transform:scale(.6) translateY(8px);opacity:0}to{transform:none;opacity:1}}
+@media (max-width:720px){.tank{grid-template-columns:minmax(0,1fr)}.tank-copy{padding:26px 20px 0}}
+
+/* ---- Étapes ---- */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:36px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+form{display:flex;flex-direction:column;gap:30px;min-width:0}
+.step{display:flex;flex-direction:column;gap:14px;min-width:0}
+.step h2{margin:0;display:flex;align-items:center;gap:12px;font-family:var(--f-display);font-weight:800;font-size:1.45rem;letter-spacing:-.01em}
+.step h2 .n{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--moss);color:var(--moss-ink);font-size:1.05rem}
+.field{display:flex;flex-direction:column;gap:8px;min-width:0}
+.lbl{font-weight:600;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lbl small{text-transform:none;letter-spacing:0;font-weight:400;font-size:inherit}
+.input-row{display:flex;gap:8px;min-width:0}
+input[type="text"],input[type="url"]{width:100%;min-width:0;font:inherit;font-size:1.08rem;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:12px 14px}
+input:focus-visible{outline:2px solid var(--moss);outline-offset:1px;border-color:var(--moss)}
+input::placeholder{color:var(--muted);opacity:.8}
+.detect{display:flex;align-items:flex-start;gap:8px;margin:0;font-size:.92rem;font-weight:500;overflow-wrap:anywhere}
+.detect::before{content:"";flex:none;width:9px;height:9px;margin-top:.5em;border-radius:50%;background:var(--muted)}
+.detect[data-kind="ok"]::before{background:var(--moss)}
+.detect[data-kind="warn"]{color:var(--amber)}
+.detect[data-kind="warn"]::before{background:var(--amber)}
+.detect[data-kind="invalid"]{color:var(--danger)}
+.detect[data-kind="invalid"]::before{background:var(--danger)}
+.tip{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border:1.5px solid var(--amber-line);border-radius:12px;background:var(--amber-soft)}
+.tip p{margin:0;font-size:.95rem}
+.help{border:1.5px solid var(--line);border-radius:12px;background:var(--surface);padding:0 16px}
+.help summary{cursor:pointer;font-weight:600;padding:12px 0}
+.help summary:focus-visible{outline:2px solid var(--moss);outline-offset:2px}
+.help-body{display:flex;flex-direction:column;gap:14px;padding-bottom:16px}
+.help h3{margin:0;font-size:.98rem}
+.help ol{margin:6px 0 0;padding-left:1.4em;display:flex;flex-direction:column;gap:5px;font-size:.94rem}
+.help li::marker{font-weight:700;color:var(--moss)}
+
+.mascots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:560px),(min-width:881px) and (max-width:1060px){.mascots{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mascot{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 8px 12px;border:2px solid var(--line);border-radius:14px;background:var(--surface);cursor:pointer;text-align:center;transition:border-color .15s,background-color .15s}
+.mascot input{position:absolute;opacity:0;pointer-events:none}
+.mascot svg{width:76px;height:76px;transition:transform .2s}
+.mascot:hover svg{transform:rotate(-4deg) scale(1.05)}
+.mascot .m-name{font-weight:700;font-size:1rem}
+.mascot .m-latin{font-family:var(--f-latin);font-style:italic;font-size:.84rem;line-height:1.25;color:var(--muted)}
+.mascot.on{border-color:var(--mc);background:var(--moss-soft)}
+.mascot:focus-within{outline:2px solid var(--moss);outline-offset:2px}
+.check{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:.95rem}
+.check input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--moss);flex:none}
+.check small{display:block;color:var(--muted);font-size:.86rem}
+
+/* ---- Aperçu ---- */
+.preview{display:flex;flex-direction:column;gap:14px;min-width:0}
+@media (min-width:881px){.preview{position:sticky;top:max(16px,env(safe-area-inset-top,0px))}}
+.card-frame{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px}
+.card-frame img{display:block;width:100%;height:auto;border-radius:8px;-webkit-touch-callout:default}
+.meta{margin:0;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.actions .primary{flex:1 1 100%}
+.actions .btn:not(.primary){flex:1 1 140px}
+.btn{font:inherit;font-weight:600;font-size:.95rem;border-radius:10px;padding:12px 16px;cursor:pointer;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center}
+.btn:hover{border-color:var(--moss)}
+.btn:focus-visible{outline:2px solid var(--moss);outline-offset:2px}
+.btn.primary{background:var(--moss);border-color:var(--moss);color:var(--moss-ink)}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.btn.small{padding:8px 12px;font-size:.88rem;flex:none}
+.status{margin:0;font-size:.9rem;min-height:1.4em;color:var(--muted)}
+.status.ok{color:var(--ink);font-weight:500}
+.linkbox{display:flex;flex-direction:column;gap:8px}
+.link-row{display:flex;gap:8px;flex-wrap:wrap}
+.link-row .btn{flex:1 1 140px}
+#linkOut{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.82rem;padding:10px 12px}
+
+.notes h2{font-family:var(--f-display);font-weight:800;font-size:1.5rem;margin:0 0 14px;letter-spacing:-.01em}
+.notes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px 28px}
+.note{display:flex;flex-direction:column;gap:4px;border-top:2px solid var(--line);padding-top:12px}
+.note h3{margin:0;font-size:1rem}
+.note p{margin:0;color:var(--muted);font-size:.94rem;max-width:60ch}
+.foot{margin:22px 0 0;color:var(--muted);font-size:.86rem}
+.install{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;background:var(--surface);border:1.5px solid var(--moss);border-radius:14px;padding:14px 16px}
+.install[hidden]{display:none}
+.install-copy{flex:1 1 260px;min-width:0}
+.install-copy strong{display:block;font-family:var(--f-display);font-weight:700;font-size:1.08rem}
+.install-copy span{display:block;color:var(--muted);font-size:.92rem}
+.install .btn{flex:0 1 auto;max-width:100%}
+@media (max-width:480px){.install .btn{flex:1 1 100%}}
+.install .status{flex:1 1 100%;min-height:0}
+.install .status:empty{display:none}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="page">
+  <header class="tank">
+    <div class="tank-copy">
+      <p class="kicker">Terrariums &amp; vivariums</p>
+      <h1>QR Vivarium</h1>
+      <p class="lead">Colle le lien de ton questionnaire, choisis ta bestiole, et repars avec un QR code à imprimer. Gratuit, et il n'expire jamais.</p>
+      <span class="tag" id="tag"><i id="tagLatin">Furcifer pardalis</i><span id="tagName">Caméléon panthère</span></span>
+    </div>
+    <svg class="tank-art" viewBox="0 0 360 214" role="img" aria-label="Un terrarium avec la mascotte choisie">
+      <defs>
+        <path id="lf" d="M0 0C30-30 72-30 100 0C72 30 30 30 0 0Z"></path>
+        <pattern id="gravel" width="22" height="14" patternUnits="userSpaceOnUse">
+          <rect width="22" height="14" fill="#A39A86"></rect>
+          <circle cx="5" cy="4" r="3.4" fill="#8C8370"></circle><circle cx="15" cy="9" r="4" fill="#BDB4A0"></circle><circle cx="20" cy="2" r="2.2" fill="#776E5D"></circle><circle cx="8" cy="12" r="2.4" fill="#BDB4A0"></circle>
+        </pattern>
+        <pattern id="soil" width="16" height="12" patternUnits="userSpaceOnUse">
+          <rect width="16" height="12" fill="#3E2C20"></rect><circle cx="4" cy="4" r="1.6" fill="#5E3F2C"></circle><circle cx="12" cy="9" r="1.3" fill="#5E3F2C"></circle>
+        </pattern>
+      </defs>
+      <g fill="#3E7A45" opacity=".55">
+        <use href="#lf" transform="translate(14 206) rotate(-72) scale(1.25)"></use>
+        <use href="#lf" transform="translate(36 208) rotate(-48) scale(.85)"></use>
+        <use href="#lf" transform="translate(346 206) rotate(-112) scale(1.2)"></use>
+      </g>
+      <g fill="#5C9E50" opacity=".7">
+        <use href="#lf" transform="translate(4 210) rotate(-96) scale(.9)"></use>
+        <use href="#lf" transform="translate(356 210) rotate(-140) scale(.8)"></use>
+      </g>
+      <g fill="#FFFFFF" opacity=".22">
+        <circle cx="118" cy="24" r="2.2"></circle><circle cx="140" cy="44" r="1.4"></circle><circle cx="300" cy="30" r="2.6"></circle><circle cx="322" cy="62" r="1.5"></circle><circle cx="262" cy="16" r="1.6"></circle><circle cx="92" cy="70" r="1.8"></circle>
+      </g>
+      <path d="M110 214C138 186 168 170 205 165C245 160 292 161 360 150" fill="none" stroke="#6E4A2C" stroke-width="10" stroke-linecap="round"></path>
+      <path d="M128 200C152 180 176 170 206 167" fill="none" stroke="#8E6440" stroke-width="2.5" stroke-linecap="round" opacity=".8"></path>
+      <path d="M252 161C264 148 278 142 296 139" fill="none" stroke="#6E4A2C" stroke-width="4.5" stroke-linecap="round"></path>
+      <g id="heroWrap"><g id="heroMascot"></g></g>
+      <rect x="0" y="192" width="360" height="11" fill="url(#soil)"></rect>
+      <rect x="0" y="203" width="360" height="11" fill="url(#gravel)"></rect>
+      <path id="mossPath" fill="#4E8B3A" d=""></path>
+    </svg>
+  </header>
+
+  <aside class="install" id="install" aria-label="Installer sur cet ordinateur" hidden>
+    <div class="install-copy"><strong>Garder QR Vivarium sur cet ordinateur</strong><span>Un seul fichier à télécharger. Ensuite, double-clic dessus pour l'ouvrir, même sans connexion.</span></div>
+    <button type="button" class="btn primary" id="getOffline">Télécharger sur cet ordinateur</button>
+    <p class="status" id="installStatus" role="status" aria-live="polite"></p>
+  </aside>
+
+  <div class="grid">
+    <form id="form" autocomplete="off">
+      <section class="step" aria-labelledby="h-link">
+        <h2 id="h-link"><span class="n">1</span>Ton lien</h2>
+        <div class="field">
+          <label class="lbl" for="link">Lien du questionnaire</label>
+          <div class="input-row">
+            <input type="url" id="link" value="" placeholder="forms.gle/… ou docs.google.com/…" spellcheck="false" autocapitalize="off">
+            <button type="button" class="btn small" id="clearLink">Effacer</button>
+          </div>
+        </div>
+        <p class="detect" id="detect" data-kind="wait">En attente de ton lien</p>
+        <div class="tip" id="sheetTip" hidden>
+          <p><b>Conseil : passe par un formulaire relié à ton tableau.</b></p>
+          <p>Un lien de tableau marche, mais sur téléphone il s'ouvre souvent en lecture seule ou réclame l'appli Sheets. Et toute personne qui peut écrire dedans voit, et peut effacer, les réponses des autres. Avec un formulaire, chacun répond de son côté et chaque réponse arrive quand même dans ton tableau.</p>
+          <p><button type="button" class="btn small" id="howBtn">Comment faire (2 minutes)</button></p>
+        </div>
+        <details class="help" id="help">
+          <summary>Où trouver le bon lien ?</summary>
+          <div class="help-body">
+            <div>
+              <h3>Tu n'as qu'un tableau Google Sheets</h3>
+              <ol>
+                <li>Dans ton tableau : menu <b>Insertion → Formulaire</b> (selon la version : <b>Outils → Créer un formulaire</b>).</li>
+                <li>Écris tes questions. Chaque réponse arrivera dans un nouvel onglet de ce même tableau.</li>
+                <li>Publie le formulaire et copie son lien, comme juste en dessous.</li>
+              </ol>
+            </div>
+            <div>
+              <h3>Tu as déjà un formulaire Google</h3>
+              <ol>
+                <li>En haut à droite, clique <b>Publier</b>. Dans <b>Gérer</b>, sous « Accès général », choisis <b>toute personne disposant du lien</b>, puis <b>OK</b> et <b>Publier</b>.</li>
+                <li>Clique <b>Publié → Copier le lien pour les répondants</b>.</li>
+                <li>Colle-le ici. Un bouton <b>Envoyer</b> à la place de Publier ? Envoyer → onglet 🔗 → coche « Raccourcir l'URL » → <b>Copier</b>.</li>
+              </ol>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="step" aria-labelledby="h-mascot">
+        <h2 id="h-mascot"><span class="n">2</span>Ta bestiole</h2>
+        <div class="mascots" id="mascots" role="radiogroup" aria-labelledby="h-mascot"></div>
+      </section>
+
+      <section class="step" aria-labelledby="h-text">
+        <h2 id="h-text"><span class="n">3</span>Le texte</h2>
+        <div class="field">
+          <label class="lbl" for="title">Titre sur l'image</label>
+          <input type="text" id="title" value="" placeholder="Répondre au questionnaire" maxlength="60">
+        </div>
+        <div class="field">
+          <label class="lbl" for="sign">Signature <small>(facultatif : ton nom ou celui de ta boutique)</small></label>
+          <input type="text" id="sign" value="" placeholder="Ex. : Les terrariums de …" maxlength="40">
+        </div>
+        <label class="check"><input type="checkbox" id="logo" checked><span>Bestiole au centre du code<small>Le code garde assez de marge de lecture pour la cacher. Décoche pour un code sans dessin.</small></span></label>
+      </section>
+    </form>
+
+    <section class="preview" aria-label="Aperçu de l'image">
+      <div class="card-frame"><img id="cardImg" alt="Image avec le QR code"></div>
+      <p class="meta" id="meta"></p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="shareCard" hidden>Partager l'image</button>
+        <button type="button" class="btn" id="saveCard">Enregistrer l'image (PNG)</button>
+        <button type="button" class="btn" id="saveQr">QR seul · PNG</button>
+      </div>
+      <p class="status" id="status" role="status"></p>
+      <div class="linkbox">
+        <label class="lbl" for="linkOut">Lien contenu dans le code</label>
+        <input type="text" id="linkOut" readonly>
+        <div class="link-row">
+          <button type="button" class="btn" id="copyLink">Copier le lien</button>
+          <a class="btn" id="testLink" href="#" target="_blank" rel="noopener">Tester le lien ↗</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="notes">
+    <h2>Avant d'imprimer</h2>
+    <div class="notes-grid">
+      <div class="note"><h3>Le test privé</h3><p>Ouvre le lien dans une fenêtre de navigation privée. Si tu vois les questions, n'importe qui pourra répondre en scannant.</p></div>
+      <div class="note"><h3>Un scan pour de vrai</h3><p>Scanne l'image avec un iPhone et un Android avant d'en imprimer une pile.</p></div>
+      <div class="note"><h3>Taille et marge</h3><p>Au moins 3 × 3 cm sur papier quand la bestiole est au centre, et garde la marge blanche autour du code.</p></div>
+      <div class="note"><h3>Ce code n'expire jamais</h3><p>Le lien est écrit dans les carrés du code, sans service au milieu. Il marche tant que le formulaire existe et accepte les réponses.</p></div>
+    </div>
+    <p class="foot">Tout se passe dans ce navigateur : rien de ce que tu tapes n'est envoyé nulle part. Fait sur mesure pour une passionnée de terrariums et de vivariums.</p>
+  </section>
+</div>
+
+<script>
+// qrcode-generator 1.4.4 — Copyright (c) 2009 Kazuhiko Arase — MIT license — https://github.com/kazuhikoarase/qrcode-generator
+var qrcode=function(){function i(t,r){function a(t,r){g=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(l=4*u+17),e(0,0),e(l-7,0),e(0,l-7),i(),o(),v(t,r),7<=u&&h(t),null==n&&(n=w(u,f,c)),d(n,r)}var u=t,f=y[r],g=null,l=0,n=null,c=[],s={},e=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||l<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||l<=r+n||(g[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},o=function(){for(var t=8;t<l-8;t+=1)null==g[t][6]&&(g[t][6]=t%2==0);for(var r=8;r<l-8;r+=1)null==g[6][r]&&(g[6][r]=r%2==0)},i=function(){for(var t=B.getPatternPosition(u),r=0;r<t.length;r+=1)for(var e=0;e<t.length;e+=1){var n=t[r],o=t[e];if(null==g[n][o])for(var i=-2;i<=2;i+=1)for(var a=-2;a<=2;a+=1)g[n+i][o+a]=-2==i||2==i||-2==a||2==a||0==i&&0==a}},h=function(t){for(var r=B.getBCHTypeNumber(u),e=0;e<18;e+=1){var n=!t&&1==(r>>e&1);g[Math.floor(e/3)][e%3+l-8-3]=n}for(e=0;e<18;e+=1){n=!t&&1==(r>>e&1);g[e%3+l-8-3][Math.floor(e/3)]=n}},v=function(t,r){for(var e=f<<3|r,n=B.getBCHTypeInfo(e),o=0;o<15;o+=1){var i=!t&&1==(n>>o&1);o<6?g[o][8]=i:o<8?g[o+1][8]=i:g[l-15+o][8]=i}for(o=0;o<15;o+=1){i=!t&&1==(n>>o&1);o<8?g[8][l-o-1]=i:o<9?g[8][15-o-1+1]=i:g[8][15-o-1]=i}g[l-8][8]=!t},d=function(t,r){for(var e=-1,n=l-1,o=7,i=0,a=B.getMaskFunction(r),u=l-1;0<u;u-=2)for(6==u&&(u-=1);;){for(var f=0;f<2;f+=1)if(null==g[n][u-f]){var c=!1;i<t.length&&(c=1==(t[i]>>>o&1)),a(n,u-f)&&(c=!c),g[n][u-f]=c,-1==(o-=1)&&(i+=1,o=7)}if((n+=e)<0||l<=n){n-=e,e=-e;break}}},w=function(t,r,e){for(var n=b.getRSBlocks(t,r),o=M(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=C(i[u],l.getLength()-1).mod(l);a[u]=new Array(l.getLength()-1);for(g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=0<=s?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};s.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=x(t);break;case"Alphanumeric":e=m(t);break;case"Byte":e=L(t);break;case"Kanji":e=D(t);break;default:throw"mode:"+r}c.push(e),n=null},s.isDark=function(t,r){if(t<0||l<=t||r<0||l<=r)throw t+","+r;return g[t][r]},s.getModuleCount=function(){return l},s.make=function(){if(u<1){for(var t=1;t<40;t++){for(var r=b.getRSBlocks(t,f),e=M(),n=0;n<c.length;n++){var o=c[n];e.put(o.getMode(),4),e.put(o.getLength(),B.getLengthInBits(o.getMode(),t)),o.write(e)}var i=0;for(n=0;n<r.length;n++)i+=r[n].dataCount;if(e.getLengthInBits()<=8*i)break}u=t}a(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){a(!0,e);var n=B.getLostPoint(s);(0==e||n<t)&&(t=n,r=e)}return r}())},s.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<s.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<s.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=s.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},s.createSvgTag=function(t,r,e,n){var o={};"object"==typeof t&&(t=(o=t).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,f,c=s.getModuleCount()*t+2*r,g="";for(f="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",g+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',g+=o.scalable?"":' width="'+c+'px" height="'+c+'px"',g+=' viewBox="0 0 '+c+" "+c+'" ',g+=' preserveAspectRatio="xMinYMin meet"',g+=n.text||e.text?' role="img" aria-labelledby="'+p([n.id,e.id].join(" ").trim())+'"':"",g+=">",g+=n.text?'<title id="'+p(n.id)+'">'+p(n.text)+"</title>":"",g+=e.text?'<description id="'+p(e.id)+'">'+p(e.text)+"</description>":"",g+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',g+='<path d="',a=0;a<s.getModuleCount();a+=1)for(u=a*t+r,i=0;i<s.getModuleCount();i+=1)s.isDark(a,i)&&(g+="M"+(i*t+r)+","+u+f);return g+='" stroke="transparent" fill="black"/>',g+="</svg>"},s.createDataURL=function(o,t){o=o||2,t=void 0===t?4*o:t;var r=s.getModuleCount()*o+2*t,i=t,a=r-t;return I(r,r,function(t,r){if(i<=t&&t<a&&i<=r&&r<a){var e=Math.floor((t-i)/o),n=Math.floor((r-i)/o);return s.isDark(n,e)?0:1}return 1})},s.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=s.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=s.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=p(e),o+='"'),o+="/>"};var p=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return s.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*s.getModuleCount()+2*t,u=t,f=a-t,c={"██":"█","█ ":"▀"," █":"▄","  ":" "},g={"██":"▀","█ ":"▀"," █":" ","  ":" "},l="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<f&&u<=r&&r<f&&s.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<f&&u<=r+1&&r+1<f&&s.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",l+=t<1&&f<=r+1?g[i]:c[i];l+="\n"}return a%2&&0<t?l.substring(0,l.length-a-1)+Array(1+a).join("▀"):l.substring(0,l.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=s.getModuleCount()*t+2*r,u=r,f=a-r,c=Array(t+1).join("██"),g=Array(t+1).join("  "),l="",h="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),h="",n=0;n<a;n+=1)i=1,u<=n&&n<f&&u<=e&&e<f&&s.isDark(o,Math.floor((n-u)/t))&&(i=0),h+=i?c:g;for(o=0;o<t;o+=1)l+=h+"\n"}return l.substring(0,l.length-1)},s.renderTo2dContext=function(t,r){r=r||2;for(var e=s.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=s.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},s}i.stringToBytes=(i.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,i.createStringToBytes=function(u,f){var i=function(){function t(){var t=r.read();if(-1==t)throw"eof";return t}for(var r=S(u),e=0,n={};;){var o=r.read();if(-1==o)break;var i=t(),a=t()<<8|t();n[String.fromCharCode(o<<8|i)]=a,e+=1}if(e!=f)throw e+" != "+f;return n}(),a="?".charCodeAt(0);return function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);if(n<128)r.push(n);else{var o=i[t.charAt(e)];"number"==typeof o?(255&o)==o?r.push(o):(r.push(o>>>8),r.push(255&o)):r.push(a)}}return r}};var r,t,a=1,u=2,o=4,f=8,y={L:1,M:0,Q:3,H:2},e=0,n=1,c=2,g=3,l=4,h=5,s=6,v=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],(t={}).getBCHTypeInfo=function(t){for(var r=t<<10;0<=d(r)-d(1335);)r^=1335<<d(r)-d(1335);return 21522^(t<<10|r)},t.getBCHTypeNumber=function(t){for(var r=t<<12;0<=d(r)-d(7973);)r^=7973<<d(r)-d(7973);return t<<12|r},t.getPatternPosition=function(t){return r[t-1]},t.getMaskFunction=function(t){switch(t){case e:return function(t,r){return(t+r)%2==0};case n:return function(t,r){return t%2==0};case c:return function(t,r){return r%3==0};case g:return function(t,r){return(t+r)%3==0};case l:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case h:return function(t,r){return t*r%2+t*r%3==0};case s:return function(t,r){return(t*r%2+t*r%3)%2==0};case v:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},t.getErrorCorrectPolynomial=function(t){for(var r=C([1],0),e=0;e<t;e+=1)r=r.multiply(C([1,w.gexp(e)],0));return r},t.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case o:case f:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case o:return 16;case f:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case o:return 16;case f:return 12;default:throw"mode:"+t}}},t.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);5<i&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},t);function d(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r}var w=function(){for(var r=new Array(256),e=new Array(256),t=0;t<8;t+=1)r[t]=1<<t;for(t=8;t<256;t+=1)r[t]=r[t-4]^r[t-5]^r[t-6]^r[t-8];for(t=0;t<255;t+=1)e[r[t]]=t;var n={glog:function(t){if(t<1)throw"glog("+t+")";return e[t]},gexp:function(t){for(;t<0;)t+=255;for(;256<=t;)t-=255;return r[t]}};return n}();function C(n,o){if(void 0===n.length)throw n.length+"/"+o;var r=function(){for(var t=0;t<n.length&&0==n[t];)t+=1;for(var r=new Array(n.length-t+o),e=0;e<n.length-t;e+=1)r[e]=n[e+t];return r}(),i={getAt:function(t){return r[t]},getLength:function(){return r.length},multiply:function(t){for(var r=new Array(i.getLength()+t.getLength()-1),e=0;e<i.getLength();e+=1)for(var n=0;n<t.getLength();n+=1)r[e+n]^=w.gexp(w.glog(i.getAt(e))+w.glog(t.getAt(n)));return C(r,0)},mod:function(t){if(i.getLength()-t.getLength()<0)return i;for(var r=w.glog(i.getAt(0))-w.glog(t.getAt(0)),e=new Array(i.getLength()),n=0;n<i.getLength();n+=1)e[n]=i.getAt(n);for(n=0;n<t.getLength();n+=1)e[n]^=w.gexp(w.glog(t.getAt(n))+r);return C(e,0).mod(t)}};return i}function p(){var e=[],o={writeByte:function(t){e.push(255&t)},writeShort:function(t){o.writeByte(t),o.writeByte(t>>>8)},writeBytes:function(t,r,e){r=r||0,e=e||t.length;for(var n=0;n<e;n+=1)o.writeByte(t[n+r])},writeString:function(t){for(var r=0;r<t.length;r+=1)o.writeByte(t.charCodeAt(r))},toByteArray:function(){return e},toString:function(){var t="";t+="[";for(var r=0;r<e.length;r+=1)0<r&&(t+=","),t+=e[r];return t+="]"}};return o}var k,A,b=(k=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],(A={}).getRSBlocks=function(t,r){var e=function(t,r){switch(r){case y.L:return k[4*(t-1)+0];case y.M:return k[4*(t-1)+1];case y.Q:return k[4*(t-1)+2];case y.H:return k[4*(t-1)+3];default:return}}(t,r);if(void 0===e)throw"bad rs block @ typeNumber:"+t+"/errorCorrectionLevel:"+r;for(var n,o,i=e.length/3,a=[],u=0;u<i;u+=1)for(var f=e[3*u+0],c=e[3*u+1],g=e[3*u+2],l=0;l<f;l+=1)a.push((n=g,o=void 0,(o={}).totalCount=c,o.dataCount=n,o));return a},A),M=function(){var e=[],n=0,o={getBuffer:function(){return e},getAt:function(t){var r=Math.floor(t/8);return 1==(e[r]>>>7-t%8&1)},put:function(t,r){for(var e=0;e<r;e+=1)o.putBit(1==(t>>>r-e-1&1))},getLengthInBits:function(){return n},putBit:function(t){var r=Math.floor(n/8);e.length<=r&&e.push(0),t&&(e[r]|=128>>>n%8),n+=1}};return o},x=function(t){var r=a,n=t,e={getMode:function(){return r},getLength:function(t){return n.length},write:function(t){for(var r=n,e=0;e+2<r.length;)t.put(o(r.substring(e,e+3)),10),e+=3;e<r.length&&(r.length-e==1?t.put(o(r.substring(e,e+1)),4):r.length-e==2&&t.put(o(r.substring(e,e+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return e},m=function(t){var r=u,n=t,e={getMode:function(){return r},getLength:function(t){return n.length},write:function(t){for(var r=n,e=0;e+1<r.length;)t.put(45*o(r.charAt(e))+o(r.charAt(e+1)),11),e+=2;e<r.length&&t.put(o(r.charAt(e)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return e},L=function(t){var r=o,e=i.stringToBytes(t),n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=0;r<e.length;r+=1)t.put(e[r],8)}};return n},D=function(t){var r=f,e=i.stringToBytesFuncs.SJIS;if(!e)throw"sjis not supported.";!function(){var t=e("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=e(t),n={getMode:function(){return r},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return n},S=function(t){var e=t,n=0,o=0,i=0,r={read:function(){for(;i<8;){if(n>=e.length){if(0==i)return-1;throw"unexpected end of file./"+i}var t=e.charAt(n);if(n+=1,"="==t)return i=0,-1;t.match(/^\s$/)||(o=o<<6|a(t.charCodeAt(0)),i+=6)}var r=o>>>i-8&255;return i-=8,r}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return r},I=function(t,r,e){for(var n=function(t,r){var n=t,o=r,l=new Array(t*r),e={setPixel:function(t,r,e){l[r*n+t]=e},write:function(t){t.writeString("GIF87a"),t.writeShort(n),t.writeShort(o),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(n),t.writeShort(o),t.writeByte(0);var r=i(2);t.writeByte(2);for(var e=0;255<r.length-e;)t.writeByte(255),t.writeBytes(r,e,255),e+=255;t.writeByte(r.length-e),t.writeBytes(r,e,r.length-e),t.writeByte(0),t.writeString(";")}},i=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,o=h(),i=0;i<r;i+=1)o.add(String.fromCharCode(i));o.add(String.fromCharCode(r)),o.add(String.fromCharCode(e));var a=p(),u=function(t){var e=t,n=0,o=0,r={write:function(t,r){if(t>>>r!=0)throw"length over";for(;8<=n+r;)e.writeByte(255&(t<<n|o)),r-=8-n,t>>>=8-n,n=o=0;o|=t<<n,n+=r},flush:function(){0<n&&e.writeByte(o)}};return r}(a);u.write(r,n);var f=0,c=String.fromCharCode(l[f]);for(f+=1;f<l.length;){var g=String.fromCharCode(l[f]);f+=1,o.contains(c+g)?c+=g:(u.write(o.indexOf(c),n),o.size()<4095&&(o.size()==1<<n&&(n+=1),o.add(c+g)),c=g)}return u.write(o.indexOf(c),n),u.write(e,n),u.flush(),a.toByteArray()},h=function(){var r={},e=0,n={add:function(t){if(n.contains(t))throw"dup key:"+t;r[t]=e,e+=1},size:function(){return e},indexOf:function(t){return r[t]},contains:function(t){return void 0!==r[t]}};return n};return e}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=p();n.write(a);for(var u=function(){function e(t){a+=String.fromCharCode(r(63&t))}var n=0,o=0,i=0,a="",t={},r=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return t.writeByte=function(t){for(n=n<<8|255&t,o+=8,i+=1;6<=o;)e(n>>>o-6),o-=6},t.flush=function(){if(0<o&&(e(n<<6-o),o=n=0),i%3!=0)for(var t=3-i%3,r=0;r<t;r+=1)a+="="},t.toString=function(){return a},t}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return i}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||57344<=n?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}(function(){return qrcode});
+</script>
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var linkIn = $("link"), titleIn = $("title"), signIn = $("sign"), logoIn = $("logo");
+  var detect = $("detect"), sheetTip = $("sheetTip"), help = $("help"), cardImg = $("cardImg"), meta = $("meta"), status = $("status");
+  var linkOut = $("linkOut"), testLink = $("testLink"), shareBtn = $("shareCard"), heroMascot = $("heroMascot");
+  var exportBtns = [shareBtn, $("saveCard"), $("saveQr"), $("copyLink")];
+
+  var QR_OK = typeof window.qrcode === "function";
+  if (QR_OK && qrcode.stringToBytesFuncs && qrcode.stringToBytesFuncs["UTF-8"]) qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
+
+  // Dans claude.ai, les téléchargements passent par la capacité "downloads" ; ailleurs, téléchargement classique.
+  var IN_CLAUDE = !!(window.claude && typeof window.claude.use === "function");
+  var dlPromise = IN_CLAUDE ? window.claude.use("downloads").catch(function(){ return null; }) : Promise.resolve(null);
+  var CAN_SHARE = false;
+  try {
+    if (!IN_CLAUDE && navigator.share && navigator.canShare && typeof File === "function")
+      CAN_SHARE = navigator.canShare({ files: [new File([new Blob(["x"], { type: "image/png" })], "t.png", { type: "image/png" })] });
+  } catch (e) { CAN_SHARE = false; }
+  shareBtn.hidden = !CAN_SHARE;
+  if (!CAN_SHARE) $("saveCard").classList.add("primary");
+
+  function store(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+  function load(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  /* ---------- Les bestioles (dessins en unités 0–100) ---------- */
+  function circ(x, y, r){ return "M" + (x - r) + " " + y + "a" + r + " " + r + " 0 1 0 " + (2 * r) + " 0a" + r + " " + r + " 0 1 0 " + (-2 * r) + " 0Z"; }
+  var SNAKE = "M14 82C14 66 34 64 48 66C64 68 78 62 78 50C78 38 64 34 52 38C42 41 36 34 40 26";
+  var SHRIMP = "M30 52C40 38 62 34 74 44C82 51 82 62 74 70";
+  var MASCOTS = {
+    cameleon: { name: "Caméléon", common: "Caméléon panthère", latin: "Furcifer pardalis", hero: "translate(146 39) scale(1.6)",
+      c: { body: "#57A84A", dark: "#2C6B35", light: "#C6E36A", wood: "#8A5A33", pupil: "#14251B", white: "#FFFFFF" },
+      qr: "#1B3A24", eye: "#24572A", tint: "#EAF3E2", sel: "#3F8F3A",
+      prop: [["s", "M6 80C30 74 62 76 96 72", "wood", 6], ["s", "M70 75C76 69 82 67 88 67", "wood", 3]],
+      layers: [
+        ["s", "M30 60C20 62 14 70 18 78C22 86 34 84 34 76C34 70 26 70 26 75", "body", 6],
+        ["s", "M44 63L40 72L36 76", "body", 5], ["s", "M64 63L68 72L72 74", "body", 5],
+        ["f", "M28 58C28 44 40 34 56 34C66 34 74 38 79 45L86 50C86 58 78 64 66 64L38 64C32 64 28 62 28 58Z", "body"],
+        ["f", "M68 37L77 28L80 44Z", "dark"],
+        ["s", "M34 56C46 60 60 60 74 54", "light", 3],
+        ["f", circ(48, 46, 2.2), "light"], ["f", circ(58, 42, 1.8), "light"], ["f", circ(40, 50, 1.6), "light"],
+        ["f", circ(75, 47, 6), "light"], ["f", circ(76.5, 47, 2.4), "pupil"],
+        ["s", "M79 55L86 52", "dark", 1.4]
+      ] },
+    serpent: { name: "Serpent", common: "Serpent des blés", latin: "Pantherophis guttatus", hero: "translate(168 52) scale(1.5)",
+      c: { body: "#E5793F", dark: "#A93520", light: "#F7D2A8", tongue: "#D62839", pupil: "#1E1410", white: "#FFFFFF" },
+      qr: "#3A1C12", eye: "#8E3418", tint: "#FBEEE4", sel: "#D9682E",
+      prop: [],
+      layers: [
+        ["s", "M14 82C13 86 10 88 5 88", "body", 6],
+        ["s", SNAKE, "body", 12], ["s", SNAKE, "dark", 12, [6, 9]],
+        ["f", "M34 26C34 18 44 14 52 16C58 18 58 24 54 27C50 30 40 32 34 26Z", "body"],
+        ["f", circ(49, 20, 3), "light"], ["f", circ(49.5, 20, 1.7), "pupil"],
+        ["s", "M57 22L64 24M64 24L68 21M64 24L67 28", "tongue", 1.5]
+      ] },
+    crevette: { name: "Crevette", common: "Crevette Red Cherry", latin: "Neocaridina davidi", hero: "translate(166 54) scale(1.5)",
+      c: { body: "#E0393E", dark: "#9E1C27", light: "#FFB8B4", pupil: "#1A0D0F", white: "#FFFFFF" },
+      qr: "#3B1217", eye: "#8C1A24", tint: "#FCECEB", sel: "#D63A3F",
+      prop: [],
+      layers: [
+        ["s", "M24 44C16 30 18 16 32 8", "body", 1.5], ["s", "M26 43C26 28 38 18 54 14", "body", 1.5],
+        ["s", "M34 58L31 68M40 60L38 70M46 61L46 71M52 61L54 70M58 60L61 68", "dark", 2],
+        ["s", SHRIMP, "body", 15], ["s", SHRIMP, "dark", 15, [1.6, 7.5], "butt"],
+        ["f", "M18 50C18 42 26 38 34 40C40 42 42 50 40 56C36 62 24 62 18 56Z", "body"],
+        ["f", "M20 46L8 42L20 51Z", "body"],
+        ["f", "M74 68L66 82L74 79L79 86L82 79L84 70Z", "dark"],
+        ["s", "M40 44C50 38 62 38 70 44", "light", 2.5],
+        ["f", circ(25, 46, 2.6), "pupil"], ["f", circ(24.2, 45.2, 0.8), "white"]
+      ] },
+    grenouille: { name: "Grenouille", common: "Dendrobate azureus", latin: "Dendrobates tinctorius azureus", hero: "translate(172 52) scale(1.45)",
+      c: { body: "#2F6FD8", dark: "#0E1B3A", light: "#8FB6FF", pupil: "#0B1020", white: "#FFFFFF" },
+      qr: "#10224A", eye: "#1F4FA8", tint: "#E8F0FC", sel: "#2F6FD8",
+      prop: [],
+      layers: [
+        ["s", "M32 70C20 66 14 76 20 84L30 84", "body", 7], ["s", "M68 70C80 66 86 76 80 84L70 84", "body", 7],
+        ["f", "M29 62a21 19 0 1 0 42 0a21 19 0 1 0-42 0Z", "body"],
+        ["s", "M37 72L33 84", "body", 5], ["s", "M63 72L67 84", "body", 5],
+        ["f", circ(20, 85, 2.6), "light"], ["f", circ(30, 85, 2.6), "light"], ["f", circ(80, 85, 2.6), "light"], ["f", circ(70, 85, 2.6), "light"],
+        ["f", circ(33, 85.5, 2.3), "light"], ["f", circ(67, 85.5, 2.3), "light"],
+        ["f", circ(38, 45, 9), "body"], ["f", circ(62, 45, 9), "body"],
+        ["f", circ(38, 44, 5), "pupil"], ["f", circ(62, 44, 5), "pupil"],
+        ["f", circ(36.4, 42.4, 1.5), "white"], ["f", circ(60.4, 42.4, 1.5), "white"],
+        ["f", circ(44, 66, 3), "dark"], ["f", circ(57, 71, 2.4), "dark"], ["f", circ(55, 58, 2), "dark"], ["f", circ(40, 75, 2), "dark"], ["f", circ(62, 63, 1.6), "dark"],
+        ["s", "M42 55Q50 60 58 55", "dark", 1.6]
+      ] }
+  };
+  var ORDER = ["cameleon", "serpent", "crevette", "grenouille"];
+
+  function layersSvg(m, withProp){
+    return (withProp ? m.prop : []).concat(m.layers).map(function(L){
+      var col = m.c[L[2]] || L[2];
+      if (L[0] === "f") return '<path d="' + L[1] + '" fill="' + col + '"/>';
+      return '<path d="' + L[1] + '" fill="none" stroke="' + col + '" stroke-width="' + L[3] + '" stroke-linecap="' + (L[5] || "round") +
+        '" stroke-linejoin="round"' + (L[4] ? ' stroke-dasharray="' + L[4].join(" ") + '"' : "") + "/>";
+    }).join("");
+  }
+  function drawMascot(ctx, m, x, y, size){
+    ctx.save(); ctx.translate(x, y); ctx.scale(size / 100, size / 100);
+    m.prop.concat(m.layers).forEach(function(L){
+      var p = new Path2D(L[1]), col = m.c[L[2]] || L[2];
+      if (L[0] === "f") { ctx.fillStyle = col; ctx.fill(p); return; }
+      ctx.strokeStyle = col; ctx.lineWidth = L[3]; ctx.lineCap = L[5] || "round"; ctx.lineJoin = "round";
+      ctx.setLineDash(L[4] || []); ctx.stroke(p);
+    });
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  // Tuiles de choix
+  var box = $("mascots");
+  ORDER.forEach(function(id, i){
+    var m = MASCOTS[id], lab = document.createElement("label");
+    lab.className = "mascot"; lab.style.setProperty("--mc", m.sel);
+    lab.innerHTML = '<input type="radio" name="mascot" value="' + id + '" id="m-' + id + '"' + (i === 0 ? " checked" : "") + '>' +
+      '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">' + layersSvg(m, true) + "</svg>" +
+      '<span class="m-name">' + m.name + '</span><span class="m-latin">' + m.latin + "</span>";
+    box.appendChild(lab);
+  });
+  function getMascot(){ var r = document.querySelector('input[name="mascot"]:checked'); return r ? r.value : "cameleon"; }
+
+  // Mousse du terrarium (bosses régulières, un peu irrégulières)
+  (function(){
+    var d = "M0 194", x = 0, k = 0;
+    while (x < 360) { var w = 16 + (k * 7) % 9, h = 9 + (k * 5) % 7; d += "Q" + (x + w / 2) + " " + (194 - 2 * h) + " " + (x + w) + " 194"; x += w; k++; }
+    $("mossPath").setAttribute("d", d + "V197H0Z");
+  })();
+
+  var heroId = "";
+  function syncMascot(){
+    var id = getMascot(), m = MASCOTS[id];
+    document.querySelectorAll(".mascot").forEach(function(l){ l.classList.toggle("on", l.querySelector("input").checked); });
+    if (id === heroId) return;
+    heroId = id;
+    heroMascot.setAttribute("transform", m.hero);
+    heroMascot.innerHTML = layersSvg(m, false);
+    var wrap = $("heroWrap"); wrap.classList.remove("pop"); void wrap.getBoundingClientRect(); wrap.classList.add("pop");
+    $("tagLatin").textContent = m.latin; $("tagName").textContent = m.common;
+  }
+
+  /* ---------- Lecture du lien ---------- */
+  function parseUrl(raw){
+    var s = raw.trim();
+    if (!s) return { kind: "empty" };
+    if (/\s/.test(s)) return { kind: "invalid", why: "Un lien ne contient pas d'espace. Copie-le en entier depuis la barre d'adresse." };
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) s = "https://" + s;
+    var u;
+    try { u = new URL(s); } catch (e) { return { kind: "invalid", why: "Ce lien n'est pas valide. Exemple : forms.gle/AbC123" }; }
+    if (!/^https?:$/.test(u.protocol)) return { kind: "invalid", why: "Seuls les liens web (http ou https) marchent ici." };
+    if (u.hostname.indexOf(".") < 0) return { kind: "invalid", why: "Il manque la fin du nom du site (.com, .be…)." };
+    var rest = u.pathname + u.search + u.hash;
+    return { kind: "url", u: u, url: u.href, host: u.hostname.replace(/^www\./, ""), path: u.pathname, hasPath: !!rest && rest !== "/" };
+  }
+  var FORM_OK = /^\/forms\/(?:u\/\d+\/)?d\/(?:e\/)?[\w-]{10,}\/(?:viewform|formResponse)\/?$/;
+  var FORM_ANY = /^\/forms\/(?:u\/\d+\/)?d\/[\w-]{10,}(?:\/|$)/;
+  function linkKind(p){
+    if (p.host === "forms.gle") return p.hasPath ? "gform" : "formbad";
+    if (p.host === "forms.office.com" || p.host === "forms.microsoft.com") return "ms";
+    if (p.host !== "docs.google.com") return "other";
+    if (/^\/spreadsheets\//.test(p.path)) return "sheet";
+    if (!/^\/forms(\/|$)/.test(p.path)) return "other";
+    if (FORM_OK.test(p.path)) return "gform";
+    if (FORM_ANY.test(p.path)) return "edit";
+    return "formbad";
+  }
+  var WHY = {
+    edit: "Ce lien sert à MODIFIER le formulaire : les gens verraient « Vous devez demander l'autorisation ». Dans Google Forms : Publié → Copier le lien pour les répondants, puis colle ce lien-là.",
+    formbad: "Ce lien Google Forms ne mène pas à un formulaire à remplir. Dans Google Forms : Publié → Copier le lien pour les répondants."
+  };
+  // Le paramètre « usp » ne sert qu'aux statistiques de Google : le retirer allège le code sans rien changer
+  function tidy(p){
+    var u = new URL(p.url), keys = [];
+    u.searchParams.forEach(function(v, k){ keys.push(k); });
+    if (keys.length === 1 && keys[0] === "usp" && u.searchParams.get("usp") !== "pp_url") u.search = "";
+    return u.href;
+  }
+
+  /* ---------- Dessin ---------- */
+  function makeQR(text, level){ var qr = qrcode(0, level); qr.addData(text, "Byte"); qr.make(); return qr; }
+  function rr(ctx, x, y, w, h, r){
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function logoModules(n){ var k = Math.round(n * 0.22); if (k % 2 !== n % 2) k++; return k; }
+
+  // Modules arrondis, « yeux » aux couleurs de la bestiole, bestiole au centre si demandé
+  function drawQR(ctx, qr, x0, y0, s, m, logo){
+    var n = qr.getModuleCount(), k = logo ? logoModules(n) : 0, c0 = (n - k) / 2, c1 = c0 + k;
+    function finder(r, c){ return (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7); }
+    ctx.fillStyle = m.qr;
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+      if (!qr.isDark(r, c) || finder(r, c)) continue;
+      if (logo && r >= c0 && r < c1 && c >= c0 && c < c1) continue;
+      rr(ctx, x0 + c * s, y0 + r * s, s, s, s * 0.3); ctx.fill();
+    }
+    [[0, 0], [0, n - 7], [n - 7, 0]].forEach(function(f){
+      var X = x0 + f[1] * s, Y = y0 + f[0] * s;
+      ctx.fillStyle = m.qr; rr(ctx, X, Y, 7 * s, 7 * s, 2.2 * s); ctx.fill();
+      ctx.fillStyle = "#FFFFFF"; rr(ctx, X + s, Y + s, 5 * s, 5 * s, 1.5 * s); ctx.fill();
+      ctx.fillStyle = m.eye; rr(ctx, X + 2 * s, Y + 2 * s, 3 * s, 3 * s, 1 * s); ctx.fill();
+    });
+    if (logo) {
+      var bx = x0 + c0 * s, size = k * s;
+      ctx.fillStyle = "#FFFFFF"; rr(ctx, bx, y0 + c0 * s, size, size, size * 0.28); ctx.fill();
+      ctx.strokeStyle = m.sel; ctx.lineWidth = Math.max(2, s * 0.32);
+      rr(ctx, bx + s * 0.45, y0 + c0 * s + s * 0.45, size - s * 0.9, size - s * 0.9, size * 0.22); ctx.stroke();
+      drawMascot(ctx, m, bx + size * 0.12, y0 + c0 * s + size * 0.1, size * 0.76);
+    }
+  }
+
+  function wrap(ctx, text, maxW, maxLines){
+    var words = String(text).split(/\s+/).filter(Boolean), lines = [], line = "";
+    for (var i = 0; i < words.length; i++) {
+      var t = line ? line + " " + words[i] : words[i];
+      if (ctx.measureText(t).width <= maxW || !line) line = t; else { lines.push(line); line = words[i]; }
+    }
+    if (line) lines.push(line);
+    lines = lines.map(function(l){ while (l.length > 1 && ctx.measureText(l).width > maxW) l = l.slice(0, -1); return l; });
+    if (lines.length > maxLines) {
+      var kept = lines.slice(0, maxLines), last = kept[maxLines - 1];
+      while (last.length > 1 && ctx.measureText(last + "…").width > maxW) last = last.slice(0, -1);
+      kept[maxLines - 1] = last.replace(/\s+$/, "") + "…";
+      return kept;
+    }
+    return lines;
+  }
+
+  function leaf(ctx, x, y, len, ang, col){
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(len * 0.3, -len * 0.3, len * 0.72, -len * 0.3, len, 0);
+    ctx.bezierCurveTo(len * 0.72, len * 0.3, len * 0.3, len * 0.3, 0, 0); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = len * 0.018;
+    ctx.beginPath(); ctx.moveTo(len * 0.06, 0); ctx.lineTo(len * 0.9, 0); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Substrat d'un vrai bac, de haut en bas : mousse, terreau, couche drainante en gravier
+  function substrate(ctx, W, y){
+    var seed = 11; function rnd(){ seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+    ctx.fillStyle = "#3E2C20"; ctx.fillRect(0, y + 30, W, 36);
+    ctx.fillStyle = "#5E3F2C"; for (var i = 0; i < 140; i++) { ctx.beginPath(); ctx.arc(rnd() * W, y + 34 + rnd() * 28, 1.5 + rnd() * 2.5, 0, 7); ctx.fill(); }
+    ctx.fillStyle = "#A39A86"; ctx.fillRect(0, y + 66, W, 44);
+    var g = ["#8C8370", "#BDB4A0", "#776E5D", "#B0A792"];
+    for (i = 0; i < 260; i++) { ctx.fillStyle = g[i % 4]; ctx.beginPath(); ctx.arc(rnd() * W, y + 70 + rnd() * 38, 3 + rnd() * 5, 0, 7); ctx.fill(); }
+    ctx.fillStyle = "#4E8B3A"; ctx.fillRect(0, y + 12, W, 22);
+    for (var x = -12; x < W + 20; x += 24 + rnd() * 10) { ctx.beginPath(); ctx.arc(x, y + 16, 13 + rnd() * 8, 0, 7); ctx.fill(); }
+    ctx.fillStyle = "#6FAE4F";
+    for (x = 0; x < W; x += 34 + rnd() * 20) { ctx.beginPath(); ctx.arc(x, y + 10 + rnd() * 8, 5 + rnd() * 5, 0, 7); ctx.fill(); }
+  }
+
+  var INK = "#14251B", MUTED = "#4F6355";
+  var FD = '"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif';
+  var FB = 'Figtree, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  var FL = 'Newsreader, Georgia, "Times New Roman", serif';
+
+  function drawCard(qr, o){
+    var m = o.m, W = 1080, P = 72, inner = W - 2 * P, MAS = 250;
+    var c = document.createElement("canvas"), ctx = c.getContext("2d");
+    ctx.font = "800 76px " + FD; var tl = wrap(ctx, o.title, inner - MAS + 10, 3);
+    ctx.font = "600 34px " + FB; var il = wrap(ctx, "Ouvrir l'appareil photo et viser le code", inner - 64, 2);
+    var n = qr.getModuleCount(), total = n + 8, s = Math.min(22, Math.floor((inner - 48) / total)), qrPx = s * total, pad = 24;
+    var panelTop = Math.max(P + 44 + tl.length * 84 + 34, P + MAS * 0.7), panelH = qrPx + 2 * pad;
+    var y = panelTop + panelH + 40;
+    var instrTop = y; y += il.length * 46 + 18;
+    var signTop = y; y += 56;
+    var subTop = y + 6, H = subTop + 110;
+    c.width = W; c.height = Math.round(H); ctx = c.getContext("2d");
+
+    ctx.fillStyle = m.tint; ctx.fillRect(0, 0, W, H);
+    leaf(ctx, W + 30, -20, 330, 2.35, "rgba(94,158,80,.20)");
+    leaf(ctx, W + 10, 40, 250, 2.75, "rgba(62,122,69,.16)");
+    leaf(ctx, -30, H * 0.42, 210, -0.25, "rgba(94,158,80,.14)");
+
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "700 26px " + FB; ctx.fillStyle = m.c.dark;
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "5px";
+    ctx.fillText("QUESTIONNAIRE", P, P + 26);
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+    ctx.font = "800 76px " + FD; ctx.fillStyle = INK;
+    tl.forEach(function(l, i){ ctx.fillText(l, P, P + 44 + 70 + i * 84); });
+
+    ctx.save(); ctx.shadowColor = "rgba(20,37,27,.16)"; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12;
+    ctx.fillStyle = "#FFFFFF"; rr(ctx, P, panelTop, inner, panelH, 40); ctx.fill(); ctx.restore();
+    var x0 = Math.round(P + (inner - qrPx) / 2 + 4 * s), y0 = Math.round(panelTop + pad + 4 * s);
+    drawQR(ctx, qr, x0, y0, s, m, o.logo);
+    // La bestiole se pose sur le bord du cadre blanc (sur sa branche pour le caméléon)
+    drawMascot(ctx, m, W - P - MAS + 6, panelTop + 6 - MAS * (m.prop.length ? 0.77 : 0.86), MAS);
+
+    if (o.example) {
+      ctx.save(); rr(ctx, P, panelTop, inner, panelH, 40); ctx.clip();
+      ctx.translate(W / 2, panelTop + panelH / 2); ctx.rotate(-0.32);
+      ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(-inner, -54, 2 * inner, 108);
+      ctx.fillStyle = m.c.dark; ctx.font = "800 50px " + FD; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("APERÇU · colle ton lien", 0, 2); ctx.restore();
+    }
+
+    // Petit appareil photo + consigne
+    var cy = instrTop + 22;
+    ctx.fillStyle = m.c.dark; rr(ctx, P, cy - 16, 44, 32, 8); ctx.fill(); rr(ctx, P + 12, cy - 22, 16, 8, 3); ctx.fill();
+    ctx.fillStyle = m.tint; ctx.beginPath(); ctx.arc(P + 22, cy, 9, 0, 7); ctx.fill();
+    ctx.fillStyle = m.c.dark; ctx.beginPath(); ctx.arc(P + 22, cy, 5, 0, 7); ctx.fill();
+    ctx.font = "600 34px " + FB; ctx.fillStyle = INK;
+    il.forEach(function(l, i){ ctx.fillText(l, P + 64, instrTop + 34 + i * 46); });
+
+    ctx.font = "italic 500 30px " + FL; ctx.fillStyle = MUTED; ctx.textAlign = "right";
+    var latinW = ctx.measureText(m.latin).width; ctx.fillText(m.latin, W - P, signTop + 40);
+    ctx.textAlign = "left";
+    if (o.sign) {
+      ctx.font = "italic 500 40px " + FL; ctx.fillStyle = m.c.dark;
+      var sl = wrap(ctx, o.sign, Math.max(200, inner - latinW - 40), 1); ctx.fillText(sl[0], P, signTop + 40);
+    }
+    substrate(ctx, W, subTop);
+    leaf(ctx, 12, subTop + 20, 96, -1.36, "#5C9E50");
+    leaf(ctx, 14, subTop + 20, 64, -0.95, "#3E7A45");
+    leaf(ctx, W - 12, subTop + 20, 90, -1.8, "#5C9E50");
+    return c;
+  }
+
+  function drawQrOnly(qr, m, logo){
+    var n = qr.getModuleCount(), total = n + 8, s = Math.max(10, Math.ceil(1100 / total));
+    var c = document.createElement("canvas"); c.width = c.height = total * s;
+    var ctx = c.getContext("2d"); ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, c.width, c.height);
+    drawQR(ctx, qr, 4 * s, 4 * s, s, m, logo);
+    return c;
+  }
+
+  function dataURLToBlob(u){
+    var parts = u.split(","), mime = parts[0].match(/:(.*?);/)[1], bin = atob(parts[1]), arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+  function slug(s){
+    var out = (s || "qr").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+    return out || "qr";
+  }
+
+  /* ---------- Mise à jour ---------- */
+  var cur = null, timer = 0;
+  function setStatus(msg, ok){ status.textContent = msg || ""; status.className = "status" + (ok ? " ok" : ""); }
+  function setDetect(kind, text){ detect.dataset.kind = kind; detect.textContent = text; }
+
+  function update(){
+    syncMascot();
+    if (!QR_OK) { setDetect("invalid", "Le générateur n'a pas pu se charger. Recharge la page."); return; }
+    var p = parseUrl(linkIn.value), k = null, link = null, example = false;
+    if (p.kind === "empty") { setDetect("wait", "En attente de ton lien"); example = true; }
+    else if (p.kind !== "url") { setDetect("invalid", p.why); example = true; }
+    else {
+      k = linkKind(p);
+      if (WHY[k]) { setDetect("invalid", WHY[k]); example = true; }
+      else {
+        link = tidy(p);
+        if (k === "gform") setDetect("ok", "Formulaire Google · lien pour répondre");
+        else if (k === "ms") setDetect("ok", "Microsoft Forms · lien pour répondre");
+        else if (k === "sheet") setDetect("warn", "Tableau Google Sheets : le code marche, mais lis le conseil juste en dessous.");
+        else setDetect("ok", "Lien web · " + p.host);
+      }
+    }
+    sheetTip.hidden = k !== "sheet";
+    var m = MASCOTS[getMascot()], data = example ? "https://forms.gle/exemple" : link;
+    var wantLogo = logoIn.checked, logo = wantLogo, qr = null;
+    try {
+      if (logo) { qr = makeQR(data, "H"); if (qr.getModuleCount() > 41) { logo = false; qr = null; } }
+      if (!qr) qr = makeQR(data, "Q");
+    } catch (e) { setDetect("invalid", "Ce lien est trop long pour un QR code."); return; }
+
+    var title = titleIn.value.trim() || "Répondre au questionnaire", sign = signIn.value.trim();
+    var cardURL = drawCard(qr, { m: m, title: title, sign: sign, logo: logo, example: example }).toDataURL("image/png");
+    cardImg.src = cardURL;
+    var n = qr.getModuleCount();
+    if (example) {
+      cur = null;
+      meta.textContent = "Aperçu avec un lien d'exemple : colle ton lien pour activer les boutons.";
+      linkOut.value = ""; testLink.setAttribute("aria-disabled", "true"); testLink.href = "#";
+      exportBtns.forEach(function(b){ b.disabled = true; });
+    } else {
+      cur = { link: link, qr: qr, m: m, logo: logo, cardURL: cardURL, file: slug(titleIn.value.trim() || "questionnaire") + "-" + slug(m.name) };
+      meta.textContent = "QR statique · version " + ((n - 17) / 4) + " · " + n + "×" + n + " modules · correction d'erreur " + (logo ? "30 %" : "25 %") +
+        (logo ? " · bestiole au centre" : wantLogo ? " · lien long : bestiole retirée du centre pour garder une lecture sûre" : "");
+      linkOut.value = link; testLink.href = link; testLink.removeAttribute("aria-disabled");
+      exportBtns.forEach(function(b){ b.disabled = false; });
+    }
+    store("qr-viv", JSON.stringify({ link: linkIn.value, mascot: getMascot(), title: titleIn.value, sign: signIn.value, logo: logoIn.checked }));
+  }
+  function schedule(){ clearTimeout(timer); timer = setTimeout(update, 120); setStatus(""); }
+
+  /* ---------- Enregistrer / partager ---------- */
+  var FALLBACK_MSG = "Enregistrement direct indisponible ici : fais un appui long (ou clic droit) sur l'image, puis « Enregistrer l'image ».";
+  function deliver(filename, blob){
+    if (IN_CLAUDE) {
+      dlPromise.then(function(dl){
+        if (!dl) { setStatus(FALLBACK_MSG); return; }
+        return dl.save({ filename: filename, data: blob }).then(function(){ setStatus("Fichier enregistré : " + filename, true); }, function(e){
+          var code = e && e.code;
+          if (code === "declined") setStatus("");
+          else if (code === "rate_limited") setStatus("Une fenêtre d'enregistrement est déjà ouverte. Termine-la puis réessaie.");
+          else setStatus(FALLBACK_MSG);
+        });
+      });
+      return;
+    }
+    try {
+      var url = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = url; a.download = filename; a.rel = "noopener"; a.style.display = "none";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+      setStatus("Fichier enregistré : " + filename + " (dans tes Téléchargements).", true);
+    } catch (e) { setStatus(FALLBACK_MSG); }
+  }
+  shareBtn.addEventListener("click", function(){
+    if (!cur) return;
+    var name = "qr-" + cur.file + ".png", file;
+    try { file = new File([dataURLToBlob(cur.cardURL)], name, { type: "image/png" }); }
+    catch (e) { deliver(name, dataURLToBlob(cur.cardURL)); return; }
+    navigator.share({ files: [file] }).then(function(){ setStatus("Image partagée.", true); }, function(e){
+      if (e && e.name === "AbortError") return;
+      deliver(name, dataURLToBlob(cur.cardURL));
+    });
+  });
+  $("saveCard").addEventListener("click", function(){ if (cur) deliver("qr-" + cur.file + ".png", dataURLToBlob(cur.cardURL)); });
+  $("saveQr").addEventListener("click", function(){ if (cur) deliver("qr-" + cur.file + "-seul.png", dataURLToBlob(drawQrOnly(cur.qr, cur.m, cur.logo).toDataURL("image/png"))); });
+  $("copyLink").addEventListener("click", function(){
+    if (!cur) return;
+    function fallback(){ linkOut.focus(); linkOut.select(); setStatus("Lien sélectionné : copie-le avec Ctrl+C ou un appui long."); }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(cur.link).then(function(){ setStatus("Lien copié.", true); }, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  });
+  testLink.addEventListener("click", function(e){ if (!cur) e.preventDefault(); });
+
+  // Version en ligne : bouton pour récupérer l'outil complet sur l'ordinateur (fichier hors ligne).
+  var offlineEl = document.getElementById("offlineCopy"), installBox = $("install"), installStatus = $("installStatus");
+  function setInstall(msg, ok){ installStatus.textContent = msg || ""; installStatus.className = "status" + (ok ? " ok" : ""); }
+  if (IN_CLAUDE && offlineEl) dlPromise.then(function(dl){ if (dl) installBox.hidden = false; });
+  $("getOffline").addEventListener("click", function(){
+    var NO = "Le téléchargement n'est pas possible ici. Ajoute plutôt cette page à tes favoris (Ctrl+D, ou ⌘+D sur Mac).";
+    var html;
+    try { html = JSON.parse(offlineEl.textContent); } catch (e) { setInstall(NO); return; }
+    dlPromise.then(function(dl){
+      if (!dl) { setInstall(NO); return; }
+      return dl.save({ filename: "QR-Vivarium.html", data: new Blob([html], { type: "text/html" }) }).then(function(){
+        setInstall("C'est téléchargé : QR-Vivarium.html est dans ton dossier Téléchargements. Range-le sur ton Bureau, puis double-clic pour l'ouvrir.", true);
+      }, function(e){
+        var code = e && e.code;
+        if (code === "declined") setInstall("");
+        else if (code === "rate_limited") setInstall("Une fenêtre d'enregistrement est déjà ouverte. Termine-la puis réessaie.");
+        else setInstall(NO);
+      });
+    });
+  });
+  $("clearLink").addEventListener("click", function(){ linkIn.value = ""; update(); linkIn.focus(); });
+  $("howBtn").addEventListener("click", function(){ help.open = true; help.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("form").addEventListener("submit", function(e){ e.preventDefault(); update(); });
+  [linkIn, titleIn, signIn].forEach(function(i){ i.addEventListener("input", schedule); });
+  logoIn.addEventListener("change", update);
+  document.querySelectorAll('input[name="mascot"]').forEach(function(r){ r.addEventListener("change", update); });
+
+  // Reprendre là où elle s'était arrêtée (sur cet appareil seulement)
+  try {
+    var saved = JSON.parse(load("qr-viv") || "null");
+    if (saved) {
+      linkIn.value = saved.link || ""; titleIn.value = saved.title || ""; signIn.value = saved.sign || ""; logoIn.checked = saved.logo !== false;
+      var mr = document.querySelector('input[name="mascot"][value="' + saved.mascot + '"]'); if (mr) mr.checked = true;
+    }
+  } catch (e) {}
+  update();
+  if (document.fonts && document.fonts.load) {
+    Promise.all(["800 76px " + FD, "600 34px " + FB, "700 26px " + FB, "italic 500 30px " + FL].map(function(f){ return document.fonts.load(f).catch(function(){}); }))
+      .then(update, function(){});
+  }
+})();
+</script>
+
+</body>
+</html>
